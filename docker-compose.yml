@@ -1,0 +1,14 @@
+services:
+  socratic-ai:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-socratic-ai-super-secret-key}
+      - DATABASE_URL=sqlite+aiosqlite:///./socratic_ai.db
+    volumes:
+      - ./data/db:/app  # persist SQLite database
+      - ./data/uploads:/app/uploads  # persist uploaded PDFs
+      - ./data/faiss:/app/faiss_store  # persist vector index
+    restart: unless-stopped

@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.env.local
+
+# Database (don't commit real DB)
+*.db
+
+# Uploads
+uploads/
+
+# Vector stores
+faiss_store/
+chroma_db/
+
+# Test scripts
+test_*.py
+verify_*.py
+list_*.py
+
+# Node.js
+node_modules/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

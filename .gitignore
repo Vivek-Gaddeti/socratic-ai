@@ -1,0 +1,35 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Env files (never commit real secrets)
+.env
+.env.local
+
+# Databases (use cloud DB in prod instead)
+*.db
+
+# User uploads (use cloud storage in prod)
+backend/uploads/
+
+# Vector index (rebuild on startup in prod)
+backend/faiss_store/
+backend/chroma_db/
+
+# Node / frontend
+node_modules/
+.next/
+frontend/.next/
+
+# Test scripts
+test_*.py
+verify_*.py
+list_*.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
