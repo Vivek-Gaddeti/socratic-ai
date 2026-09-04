@@ -1,53 +1,120 @@
-# SocraticAI — Multi-Agent RAG Socratic Learning Platform
+# SocraticAI 🧠
+### Multi-Agent RAG-Powered Socratic Learning Platform
 
-**SocraticAI** is an AI-powered educational system that never spoon-feeds answers. Instead, it utilizes the classical **Socratic Method** to stimulate critical thinking and illuminate ideas through guided dialogue, real-time understanding scoring, and graduated hints.
-
----
-
-## Key Features
-
-1. **Multi-Agent State Machine (LangGraph)**:
-   - **Knowledge Agent**: Performs semantic retrieval of textbook passages using vector similarity.
-   - **Evaluator Agent**: Evaluates student responses on a 0-100 rubric, identifying misconceptions and mastery.
-   - **Socrates Agent**: Generates probing, open-ended questions tailored to the student's mastery level.
-   - **Hint Agent**: Triggers multi-level graduated hints (Level 1 conceptual -> Level 2 analogy -> Level 3 guided insight) when a student gets stuck.
-
-2. **RAG Pipeline (PDF to Embeddings)**:
-   - PyMuPDF text & page extraction
-   - Recursive character text chunking
-   - Gemini & semantic fallback vector embeddings
-   - Persistent vector index storage
-
-3. **Knowledge Mastery Graph**:
-   - Concept-level mastery tracking (0-100%) stored in SQLite
-   - Visual progress bars per topic and session history
-
-4. **Modern UI / UX**:
-   - Next.js 16 + React + Turbopack
-   - Glassmorphic design with dark theme
-   - Real-time chat with typing indicator, agent badges, and source drawer
+A full-stack AI tutor that teaches through dialectical Socratic questioning, grounded in your uploaded PDF textbooks via RAG (Retrieval-Augmented Generation).
 
 ---
 
-## Quick Start
+## Tech Stack
+- **Backend**: FastAPI + LangGraph (multi-agent orchestration) + FAISS (vector store)
+- **AI**: Google Gemini 2.5 Flash via LangChain
+- **Frontend**: Vanilla HTML, CSS, and JavaScript (no React/Node required)
+- **Database**: SQLite (async via aiosqlite + SQLAlchemy)
+- **Auth**: JWT tokens (python-jose)
 
-### 1. Running the Backend
+---
+
+## Features
+- **Socratic Agent**: Never gives direct answers — guides through targeted questions
+- **Evaluator Agent**: Scores student answers 0–100% for comprehension
+- **Hint Agent**: Progressively unlocks graduated hints when student is stuck
+- **RAG Pipeline**: Indexes PDF textbooks into FAISS, retrieves relevant passages for every question
+- **Knowledge State Tracking**: Tracks mastery per concept across sessions
+- **Mastery Progression**: Automatically advances to next concept when ≥ 85% mastery is achieved
+
+---
+
+## Quick Start (Local)
+
 ```bash
+# 1. Install dependencies
 cd backend
-# Optional: add your Gemini API Key in .env
-# GEMINI_API_KEY=your_key_here
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
-API Documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+pip install -r requirements.txt
 
-### 2. Running the Frontend
+# 2. Set your Gemini API key
+# Edit backend/.env and set GEMINI_API_KEY=your_key
+
+# 3. Run
+python main.py
+# OR double-click run.bat
+```
+
+Visit: **http://127.0.0.1:8000**
+
+---
+
+## Project Structure
+
+```
+socratic-ai/
+├── backend/
+│   ├── agents/
+│   │   └── orchestrator.py     # LangGraph multi-agent system
+│   ├── database/
+│   │   └── models.py           # SQLAlchemy async models
+│   ├── rag/
+│   │   └── pipeline.py         # FAISS PDF ingestion & retrieval
+│   ├── routers/
+│   │   ├── auth.py             # Register, Login, JWT
+│   │   ├── chat.py             # Socratic session & messaging
+│   │   └── documents.py        # PDF upload & management
+│   ├── static/
+│   │   ├── index.html          # Clean Vanilla HTML UI
+│   │   ├── style.css           # Dark mode modern design
+│   │   └── app.js              # Frontend logic (no framework)
+│   ├── auth.py                 # Password hashing & JWT utils
+│   ├── config.py               # Settings from .env
+│   ├── main.py                 # FastAPI app + static file serving
+│   ├── Dockerfile              # Production Docker image
+│   └── requirements.txt
+├── docker-compose.yml          # One-command deployment
+├── .env.example                # Environment variable template
+├── .gitignore
+├── run.py                      # Cross-platform launcher
+├── run.bat                     # Windows double-click launcher
+└── README.md
+```
+
+---
+
+## Deployment
+
+### Railway (Recommended — Free Tier)
+1. Push to GitHub
+2. Connect repo on [railway.app](https://railway.app)
+3. Set Root Directory to `backend`
+4. Add env vars: `GEMINI_API_KEY`, `SECRET_KEY`
+
+### Docker
 ```bash
-cd frontend
-npm run dev
+cp .env.example .env   # Fill in your GEMINI_API_KEY
+docker-compose up -d
 ```
-Access the application: [http://localhost:3000](http://localhost:3000)
 
-### 3. Demo Credentials
-- **Email**: `scholar@example.com`
-- **Password**: `SecurePassword123!`
-*(Or click "Sign Up" to register any new account)*
+---
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `GEMINI_API_KEY` | Google Gemini API key from [AI Studio](https://aistudio.google.com/app/apikey) |
+| `SECRET_KEY` | JWT signing secret (any long random string) |
+| `DATABASE_URL` | SQLite path (default) or PostgreSQL URL for production |
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` | Login (returns JWT) |
+| GET | `/auth/me` | Current user profile |
+| POST | `/documents/upload` | Upload PDF for RAG |
+| GET | `/documents/` | List indexed documents |
+| POST | `/chat/session` | Start learning session |
+| POST | `/chat/message` | Send message, get Socratic response |
+| GET | `/chat/sessions` | List all sessions |
+| GET | `/chat/knowledge-state` | Get mastery scores per concept |
+
+Interactive docs: **http://localhost:8000/docs**

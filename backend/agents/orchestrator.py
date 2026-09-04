@@ -10,6 +10,7 @@ from config import get_settings
 from rag.pipeline import retrieve_context, retrieve_context_no_filter
 import json
 import re
+import random
 
 settings = get_settings()
 
@@ -33,6 +34,31 @@ class AgentState(TypedDict):
     final_response: str
     agent_used: str
     mastery_achieved: bool
+
+
+# ─────────────────────────────────────────────
+# LLM FACTORY — lazily initialized
+# ─────────────────────────────────────────────
+def get_llms():
+    """Lazily get Gemini models if a valid key exists, otherwise return None."""
+    current_settings = get_settings()
+    key = (current_settings.gemini_api_key or "").strip()
+    if not key or "your_gemini" in key or len(key) < 15:
+        return None, None
+    try:
+        chat_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=key,
+            temperature=0.7,
+        )
+        eval_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=key,
+            temperature=0.1,
+        )
+        return chat_llm, eval_llm
+    except Exception:
+        return None, None
 
 
 # ─────────────────────────────────────────────
@@ -148,30 +174,6 @@ Respond ONLY with a JSON object like:
 # AGENT 3: SOCRATES AGENT
 # Generates probing questions — never gives the answer
 # ─────────────────────────────────────────────
-import random
-import re
-import json
-
-def get_llms():
-    """Lazily get Gemini models if a valid key exists, otherwise return None."""
-    current_settings = get_settings()
-    key = (current_settings.gemini_api_key or "").strip()
-    if not key or "your_gemini" in key or len(key) < 15:
-        return None, None
-    try:
-        chat_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=key,
-            temperature=0.7,
-        )
-        eval_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=key,
-            temperature=0.1,
-        )
-        return chat_llm, eval_llm
-    except Exception:
-        return None, None
 
 
 def extract_key_terms(text: str) -> list[str]:
