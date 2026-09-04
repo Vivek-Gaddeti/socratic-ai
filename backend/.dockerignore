@@ -6,7 +6,10 @@ __pycache__/
 # Virtual environments
 venv/
 env/
+.env
+.env.*
 .env.local
+
 
 # Database (don't commit real DB)
 *.db

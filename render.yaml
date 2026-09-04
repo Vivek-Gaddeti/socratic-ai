@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: socratic-ai
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # Set your Google Gemini API key in Render Dashboard
+      - key: SECRET_KEY
+        generateValue: true  # Render auto-generates a secure 256-bit random string
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./socratic_ai.db
+      - key: PORT
+        value: 8000
+
