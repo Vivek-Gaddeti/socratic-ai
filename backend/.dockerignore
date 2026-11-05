@@ -23,6 +23,7 @@ chroma_db/
 
 # Test scripts
 test_*.py
+tests/
 verify_*.py
 list_*.py
 

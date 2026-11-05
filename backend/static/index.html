@@ -3,288 +3,225 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SocraticAI - Multi-Agent RAG Learning Platform</title>
-  <meta name="description" content="Master complex concepts through dialectical Socratic inquiry and textbook RAG retrieval.">
+  <title>SocraticAI</title>
+  <meta name="description" content="A multi-agent tutor that teaches from your PDF textbooks through questions.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='Georgia'>Σ</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    try { const t = localStorage.getItem("socratic_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
 </head>
 <body>
-  <!-- TOP NAVBAR -->
-  <header class="navbar">
-    <div class="nav-brand">
-      <div class="brand-icon">&#9878;</div>
-      <div class="brand-text">
-        <span class="brand-title">SocraticAI</span>
-        <span class="brand-badge">Multi-Agent AI Tutor</span>
-      </div>
+
+  <!-- ============ SIGNED-OUT LANDING ============ -->
+  <div id="view-auth" class="auth-view hidden">
+    <div class="auth-hero">
+      <div class="brand brand-lg"><span class="brand-mark">Σ</span><span>SocraticAI</span></div>
+      <h1>Learn your textbook by answering, not reading.</h1>
+      <p class="lede">Upload a PDF. A team of AI agents builds a topic-by-topic curriculum from it, asks you questions grounded in the text, scores your answers, and moves you forward only when you've really understood.</p>
+      <ol class="how-list">
+        <li><span class="how-dot agent-knowledge"></span><div><strong>Knowledge agent</strong> finds the right passages in your PDF with a FAISS vector search.</div></li>
+        <li><span class="how-dot agent-evaluator"></span><div><strong>Evaluator agent</strong> scores each answer 0–100 with Gemini 2.5 Flash.</div></li>
+        <li><span class="how-dot agent-socrates"></span><div><strong>Tutor agent</strong> asks the next question, and moves to the next topic at <strong>85%</strong>.</div></li>
+        <li><span class="how-dot agent-hint"></span><div><strong>Hint agent</strong> steps in with graduated hints when you're stuck.</div></li>
+      </ol>
     </div>
 
-    <div class="nav-status">
-      <span class="status-dot"></span>
-      <span class="status-text" id="system-status">Backend: Online</span>
-    </div>
-
-    <div class="nav-user">
-      <button class="btn btn-secondary btn-sm" id="btn-open-api-key" title="Configure Google Gemini API Key">
-        &#128273; <span id="api-key-status-text">Gemini Key</span>
-      </button>
-      <div id="user-logged-out">
-        <button class="btn btn-secondary btn-sm" id="btn-open-login">Sign In</button>
-        <button class="btn btn-primary btn-sm" id="btn-open-register">Register</button>
+    <div class="auth-card card">
+      <div class="segmented" role="tablist">
+        <button class="seg-btn active" id="auth-tab-login" role="tab">Sign in</button>
+        <button class="seg-btn" id="auth-tab-register" role="tab">Create account</button>
       </div>
-      <div id="user-logged-in" class="hidden">
-        <span class="user-greeting">Welcome, <strong id="user-display-name">Student</strong></span>
-        <button class="btn btn-secondary btn-sm" id="btn-logout">Sign Out</button>
-      </div>
+
+      <form id="form-login" class="stack">
+        <label class="field"><span>Email</span><input type="email" id="login-email" required autocomplete="email" placeholder="you@example.com"></label>
+        <label class="field"><span>Password</span><input type="password" id="login-password" required autocomplete="current-password"></label>
+        <p id="login-error" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      </form>
+
+      <form id="form-register" class="stack hidden">
+        <label class="field"><span>Name</span><input type="text" id="reg-name" required autocomplete="name" placeholder="Your name"></label>
+        <label class="field"><span>Email</span><input type="email" id="reg-email" required autocomplete="email" placeholder="you@example.com"></label>
+        <label class="field"><span>Password</span><input type="password" id="reg-password" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters"></label>
+        <p id="register-error" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      </form>
+
+      <div class="divider"><span>or</span></div>
+      <button type="button" class="btn btn-ghost btn-block" id="btn-demo-login">Try the demo account</button>
     </div>
-  </header>
+  </div>
 
-  <!-- MAIN TAB NAVIGATION -->
-  <nav class="main-tabs">
-    <button class="tab-btn active" data-tab="tab-chat" id="tab-btn-chat">
-      <span class="tab-icon">&#128172;</span> Socratic Tutor
-    </button>
-    <button class="tab-btn" data-tab="tab-docs" id="tab-btn-docs">
-      <span class="tab-icon">&#128218;</span> Study Documents (RAG)
-    </button>
-    <button class="tab-btn" data-tab="tab-mastery" id="tab-btn-mastery">
-      <span class="tab-icon">&#128202;</span> Mastery & Knowledge State
-    </button>
-  </nav>
+  <!-- ============ APP SHELL ============ -->
+  <div id="view-app" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="brand"><span class="brand-mark">Σ</span><span>SocraticAI</span></div>
+        <button class="icon-btn only-mobile" id="btn-close-sidebar" aria-label="Close menu">✕</button>
+      </div>
 
-  <!-- MAIN CONTENT CONTAINER -->
-  <main class="container">
-    
-    <!-- TAB 1: SOCRATIC CHAT -->
-    <section id="tab-chat" class="tab-content active">
-      <div class="chat-layout">
-        <!-- Sidebar: Sessions & Context -->
-        <aside class="chat-sidebar">
-          <div class="sidebar-header">
-            <h3>Learning Sessions</h3>
-            <button class="btn btn-primary btn-sm" id="btn-new-session">+ New Session</button>
-          </div>
+      <nav class="nav" aria-label="Main">
+        <button class="nav-item active" data-view="tutor"><span class="nav-ico">💬</span>Tutor</button>
+        <button class="nav-item" data-view="library"><span class="nav-ico">📚</span>Library</button>
+        <button class="nav-item" data-view="progress"><span class="nav-ico">📈</span>Progress</button>
+      </nav>
 
-          <!-- Session Context Config -->
-          <div class="session-config-card">
-            <label for="select-doc-context">Study Document:</label>
-            <select id="select-doc-context" class="input-field">
-              <option value="">(No specific document - General)</option>
-            </select>
+      <button class="btn btn-primary btn-block" id="btn-new-session">+ New session</button>
+      <button class="btn btn-ghost btn-block" data-upload="1">⇪ Upload a PDF</button>
 
-            <label for="input-topic-context" style="margin-top: 8px;">Study Topic / Concept:</label>
-            <input type="text" id="input-topic-context" class="input-field" placeholder="e.g. Backpropagation, Neural Networks">
-            <button class="btn btn-secondary btn-sm full-width" id="btn-create-session" style="margin-top: 8px;">Start Session</button>
-          </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Sessions</div>
+        <div class="session-list" id="session-list"></div>
+      </div>
 
-          <!-- Sessions List -->
-          <div class="sessions-list" id="sessions-list">
-            <div class="empty-hint">No sessions yet. Click "+ New Session" to begin.</div>
-          </div>
-        </aside>
+      <div class="sidebar-footer">
+        <button class="engine-pill" id="btn-settings" title="AI engine settings">
+          <span class="engine-dot" id="engine-dot"></span><span id="engine-label">Checking…</span>
+        </button>
+        <div class="user-row">
+          <div class="avatar" id="user-avatar">S</div>
+          <div class="user-meta"><div class="user-name" id="user-name">Student</div><div class="user-email" id="user-email"></div></div>
+          <button class="icon-btn" id="btn-theme" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
+          <button class="icon-btn" id="btn-logout" aria-label="Sign out" title="Sign out">⎋</button>
+        </div>
+      </div>
+    </aside>
+    <div class="scrim hidden" id="scrim"></div>
 
-        <!-- Main Chat Area -->
-        <div class="chat-main">
-          <!-- Chat Header Bar -->
-          <div class="chat-banner">
-            <div>
-              <h2 id="active-session-title">Select or start a learning session</h2>
-              <p id="active-session-subtitle" class="text-muted">Engage in dialectical inquiry with AI agents</p>
-            </div>
-            <div id="active-concept-tag" class="concept-badge hidden">Concept: None</div>
-          </div>
+    <main class="main">
+      <header class="mobile-bar only-mobile">
+        <button class="icon-btn" id="btn-open-sidebar" aria-label="Open menu">☰</button>
+        <div class="brand"><span class="brand-mark">Σ</span><span>SocraticAI</span></div>
+        <button class="icon-btn" data-upload="1" aria-label="Upload a PDF" title="Upload a PDF">⇪</button>
+      </header>
 
-          <!-- Message History -->
-          <div class="chat-stream" id="chat-stream">
-            <div class="chat-welcome">
-              <div class="welcome-icon">&#129302;</div>
-              <h3>Welcome to SocraticAI</h3>
-              <p>I won't just give you the answer. I will guide you with targeted questions, evaluate your conceptual clarity, and provide progressive hints to help you truly master the topic.</p>
-              <div class="quick-prompts">
-                <span class="quick-prompt-label">Quick Prompts:</span>
-                <button class="chip" data-prompt="Teach me how Backpropagation works using Socratic questions.">Backpropagation</button>
-                <button class="chip" data-prompt="Why do we need activation functions in deep neural networks?">Activation Functions</button>
-                <button class="chip" data-prompt="What is the difference between gradient descent and stochastic gradient descent?">Gradient Descent</button>
+      <!-- ============ TUTOR ============ -->
+      <section class="view" id="view-tutor">
+        <div class="tutor-layout">
+          <div class="chat-col">
+            <div class="chat-header" id="chat-header">
+              <div class="chat-title-wrap">
+                <h1 class="chat-title" id="chat-title">Start a learning session</h1>
+                <div class="chat-sub" id="chat-sub">Pick a document and the tutor will take you through it topic by topic.</div>
+              </div>
+              <div class="chat-header-actions">
+                <span class="topic-chip hidden" id="current-topic-chip"></span>
+                <button class="btn btn-ghost btn-sm" data-upload="1" title="Upload a PDF to study">⇪ Upload PDF</button>
+                <button class="btn btn-ghost btn-sm only-narrow" id="btn-toggle-panel">Curriculum</button>
               </div>
             </div>
-          </div>
 
-          <!-- Chat Input Area -->
-          <div class="chat-input-wrapper">
-            <form id="chat-form" class="chat-form">
-              <textarea 
-                id="chat-input" 
-                class="chat-textarea" 
-                rows="2" 
-                placeholder="Type your explanation or question... (Press Enter to send, Shift+Enter for new line)"
-              ></textarea>
-              <button type="submit" class="btn btn-primary btn-send" id="btn-send-message">
-                <span>Send</span> &#10148;
-              </button>
+            <div class="chat-stream" id="chat-stream" aria-live="polite"></div>
+
+            <form class="composer" id="composer">
+              <div class="composer-box">
+                <textarea id="chat-input" rows="1" placeholder="Explain your thinking, or ask a question…" aria-label="Your message"></textarea>
+                <div class="composer-actions">
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-hint" title="Ask the hint agent">💡 Hint</button>
+                  <button type="submit" class="btn btn-primary btn-sm" id="btn-send">Send ↵</button>
+                </div>
+              </div>
+              <div class="composer-note">Enter to send · Shift+Enter for a new line</div>
             </form>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- TAB 2: STUDY DOCUMENTS (RAG) -->
-    <section id="tab-docs" class="tab-content">
-      <div class="docs-container">
-        <div class="section-heading">
-          <div>
-            <h2>Textbook & Notes Library</h2>
-            <p class="text-muted">Upload course PDFs or lecture notes. SocraticAI indexes chunks in FAISS/Chroma and grounds questions in your material.</p>
+          <aside class="panel" id="session-panel">
+            <div class="panel-section">
+              <div class="panel-head">
+                <h2>Curriculum</h2>
+                <span class="muted small" id="curriculum-count"></span>
+              </div>
+              <div class="threshold-note">Score <strong id="threshold-value">85</strong>+ on a topic to move on.</div>
+              <ol class="curriculum" id="curriculum"><li class="muted small">No session yet.</li></ol>
+            </div>
+            <div class="panel-section">
+              <h2>Last turn</h2>
+              <div id="last-turn" class="muted small">The agents' steps for each reply appear here.</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ LIBRARY ============ -->
+      <section class="view hidden" id="view-library">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <h1>Library</h1>
+              <p class="muted">Each PDF is split into chunks, embedded, and stored in its own FAISS index. Gemini also reads it and proposes an ordered list of topics to master.</p>
+            </div>
           </div>
-        </div>
 
-        <!-- Upload Box -->
-        <div class="upload-dropzone" id="upload-dropzone">
-          <input type="file" id="file-upload-input" accept=".pdf" style="display: none;">
-          <div class="dropzone-icon">&#128196;</div>
-          <h3>Drag & Drop your PDF textbook here</h3>
-          <p class="text-muted">or click to browse files (PDF only)</p>
-          <button class="btn btn-secondary" id="btn-browse-file" type="button">Select PDF</button>
-          <div id="upload-status" class="upload-status hidden"></div>
-        </div>
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="file-input" accept="application/pdf,.pdf" hidden>
+            <div class="dropzone-ico">⇪</div>
+            <div><strong>Drop a PDF here</strong> or click to choose one</div>
+            <div class="muted small">Text-based PDFs up to 25 MB</div>
+          </label>
 
-        <!-- Documents Table / Cards -->
-        <div class="docs-list-header">
-          <h3>Indexed Documents</h3>
-          <button class="btn btn-secondary btn-sm" id="btn-refresh-docs">&#8635; Refresh</button>
+          <div class="doc-grid" id="doc-grid"></div>
         </div>
+      </section>
 
-        <div class="docs-grid" id="docs-grid">
-          <div class="empty-hint">No documents uploaded yet. Upload a PDF textbook to enhance Socratic questioning.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: MASTERY ANALYTICS -->
-    <section id="tab-mastery" class="tab-content">
-      <div class="mastery-container">
-        <div class="section-heading">
-          <div>
-            <h2>Knowledge State & Mastery</h2>
-            <p class="text-muted">Track your conceptual comprehension evaluated by the Socratic Evaluator Agent in real time.</p>
+      <!-- ============ PROGRESS ============ -->
+      <section class="view hidden" id="view-progress">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <h1>Progress</h1>
+              <p class="muted">Your proficiency on each topic, saved across every session. A topic counts as mastered once you score at least 85 on it.</p>
+            </div>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-refresh-mastery">&#8635; Refresh Stats</button>
+          <div class="kpis" id="kpis"></div>
+          <div id="proficiency"></div>
         </div>
-
-        <!-- Metric KPI Cards -->
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-title">Concepts Studied</div>
-            <div class="kpi-value" id="kpi-concepts-count">0</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-title">Mastered Concepts (&ge; 80%)</div>
-            <div class="kpi-value highlight-green" id="kpi-mastered-count">0</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-title">Average Mastery</div>
-            <div class="kpi-value" id="kpi-avg-mastery">0%</div>
-          </div>
-        </div>
-
-        <!-- Mastery Items List -->
-        <div class="mastery-list-wrapper">
-          <h3>Concept Breakdown</h3>
-          <div class="mastery-table-container">
-            <table class="mastery-table">
-              <thead>
-                <tr>
-                  <th>Concept</th>
-                  <th>Mastery Score</th>
-                  <th>Progress</th>
-                  <th>Attempts</th>
-                  <th>Last Evaluated</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="mastery-table-body">
-                <tr>
-                  <td colspan="6" class="text-center text-muted">No concept evaluations recorded yet. Start a chat session!</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- AUTH MODAL -->
-  <div class="modal-overlay hidden" id="auth-modal">
-    <div class="modal-card">
-      <button class="modal-close" id="btn-close-modal">&times;</button>
-      
-      <div class="auth-tabs">
-        <button class="auth-tab-btn active" id="auth-tab-login">Sign In</button>
-        <button class="auth-tab-btn" id="auth-tab-register">Register</button>
-      </div>
-
-      <!-- Login Form -->
-      <form id="form-login" class="auth-form">
-        <div class="form-group">
-          <label for="login-email">Email Address</label>
-          <input type="email" id="login-email" class="input-field" required placeholder="student@example.com" value="student@socratic.ai">
-        </div>
-        <div class="form-group">
-          <label for="login-password">Password</label>
-          <input type="password" id="login-password" class="input-field" required placeholder="••••••••" value="secret123">
-        </div>
-        <div id="login-error" class="error-msg hidden"></div>
-        <button type="submit" class="btn btn-primary full-width" id="btn-submit-login">Sign In</button>
-        <button type="button" class="btn btn-secondary full-width" id="btn-demo-login" style="margin-top: 8px;">Demo 1-Click Login</button>
-      </form>
-
-      <!-- Register Form -->
-      <form id="form-register" class="auth-form hidden">
-        <div class="form-group">
-          <label for="reg-name">Full Name</label>
-          <input type="text" id="reg-name" class="input-field" required placeholder="John Doe">
-        </div>
-        <div class="form-group">
-          <label for="reg-email">Email Address</label>
-          <input type="email" id="reg-email" class="input-field" required placeholder="student@example.com">
-        </div>
-        <div class="form-group">
-          <label for="reg-password">Password</label>
-          <input type="password" id="reg-password" class="input-field" required placeholder="Minimum 6 characters">
-        </div>
-        <div id="register-error" class="error-msg hidden"></div>
-        <button type="submit" class="btn btn-primary full-width" id="btn-submit-register">Create Account</button>
-      </form>
-    </div>
+      </section>
+    </main>
   </div>
 
-  <!-- API KEY CONFIGURATION MODAL -->
-  <div class="modal-overlay hidden" id="api-key-modal">
-    <div class="modal-card">
-      <button class="modal-close" id="btn-close-key-modal">&times;</button>
-      <h3 style="margin-bottom: 0.5rem; font-size: 1.15rem;">&#128273; Google Gemini API Key</h3>
-      <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
-        Active AI Mode: <strong id="current-engine-mode" style="color: #818cf8;">Checking...</strong>
-      </p>
-
-      <form id="form-api-key">
-        <div class="form-group">
-          <label for="input-gemini-key">Gemini API Key</label>
-          <input type="password" id="input-gemini-key" class="input-field" placeholder="AIzaSy...">
+  <!-- ============ NEW SESSION DIALOG ============ -->
+  <dialog id="dlg-session" class="dialog">
+    <form method="dialog" class="dialog-body" id="form-session">
+      <div class="dialog-head"><h2>New session</h2><button class="icon-btn" value="cancel" aria-label="Close">✕</button></div>
+      <div class="stack">
+        <div class="field"><span>What do you want to study?</span>
+          <div class="choice-list" id="session-doc-choices"></div>
+          <button type="button" class="btn btn-ghost btn-sm" data-upload="1" style="align-self:flex-start">⇪ Upload a new PDF</button>
         </div>
-        <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem; line-height: 1.4;">
-          Don't have a key? Get a free API key at 
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Google AI Studio</a>. 
-          Without a key, SocraticAI uses the smart offline heuristic engine.
-        </p>
-        <div id="api-key-status-msg" class="upload-status hidden" style="width: 100%; margin-bottom: 1rem; text-align: center;"></div>
-        <button type="submit" class="btn btn-primary full-width" id="btn-save-key">Save & Connect Gemini</button>
-      </form>
-    </div>
-  </div>
+        <label class="field" id="session-topic-field"><span>Start from a specific topic <em class="muted">(optional)</em></span>
+          <select id="session-topic"></select>
+        </label>
+        <label class="field hidden" id="session-free-topic-field"><span>Topic</span>
+          <input type="text" id="session-free-topic" placeholder="e.g. Backpropagation">
+        </label>
+      </div>
+      <div class="dialog-foot">
+        <button class="btn btn-ghost" value="cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-start-session" value="default">Start</button>
+      </div>
+    </form>
+  </dialog>
 
-  <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="toast hidden"></div>
+  <!-- ============ SETTINGS DIALOG ============ -->
+  <dialog id="dlg-settings" class="dialog">
+    <form method="dialog" class="dialog-body" id="form-settings">
+      <div class="dialog-head"><h2>AI engine</h2><button class="icon-btn" value="cancel" aria-label="Close">✕</button></div>
+      <dl class="kv" id="settings-kv"></dl>
+      <label class="field"><span>Gemini API key</span>
+        <input type="password" id="input-key" placeholder="Paste a key from Google AI Studio" autocomplete="off">
+      </label>
+      <p class="muted small">Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Without one, SocraticAI runs offline with template questions and keyword-based search.</p>
+      <p id="settings-msg" class="small hidden"></p>
+      <div class="dialog-foot">
+        <button class="btn btn-ghost" value="cancel">Close</button>
+        <button class="btn btn-primary" id="btn-save-key" value="default">Save key</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>
 </body>

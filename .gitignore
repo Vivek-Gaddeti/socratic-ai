@@ -21,8 +21,9 @@ node_modules/
 .next/
 frontend/.next/
 
-# Test scripts
+# Scratch test scripts (but keep the real test suite)
 test_*.py
+!backend/tests/test_*.py
 verify_*.py
 list_*.py
 
